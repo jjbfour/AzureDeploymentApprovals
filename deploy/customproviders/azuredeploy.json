@@ -4,18 +4,17 @@
     "parameters": {
         "AzureFunctionName": {
             "type": "string",
-            "defaultValue": ""
+            "defaultValue": "MyTestFunctionName"
         },
         "AzureCosmosDBName": {
             "type": "string",
-            "defaultValue": ""
+            "defaultValue": "azuredeploymentapprovals3"
         },
         "FunctionZipUri": {
           "type": "string",
           "metadata": {
             "description": "The Uri to the uploaded function zip file"
-          },
-          "defaultValue": "https://github.com/raosuhas/managedapps-intro/blob/master/CustomRPWithFunction/Artifacts/functionpackage.zip?raw=true"
+          }
         },
         "SlackWebHook": {
             "type": "string",
@@ -26,6 +25,7 @@
     },
     "variables": {
         "location": "East US",
+        "cosmosLocation": "West US",
         "customProvidersApiVersion" : "2018-09-01-preview"
     },
     "resources": [
@@ -33,13 +33,13 @@
             "name": "[parameters('AzureCosmosDBName')]",
             "type": "Microsoft.DocumentDB/databaseAccounts",
             "apiVersion": "2016-03-31",
-            "location": "[parameters('location')]",
+            "location": "[variables('cosmosLocation')]",
             "kind": "MongoDB",
             "properties": {
                 "enableMultipleWriteLocations": false,
                 "locations": [
                     {
-                    "locationName": "[parameters('location')]"
+                    "locationName": "[variables('cosmosLocation')]"
                     }
                 ],
                 "databaseAccountOfferType": "Standard"
@@ -98,14 +98,14 @@
         {
             "apiVersion": "[variables('customProvidersApiVersion')]",
             "type": "Microsoft.CustomProviders/resourceProviders",
-            "name":"[parameters('AzureFunctionName')]",
+            "name":"azuredeploymentapprovals",
             "location":"[variables('location')]",
             "properties": {
                             "resourceTypes": [
                                 {
                                     "name":"approvals",
                                     "routingType":"Proxy,Cache",
-                                    "endpoint": "[listsecrets(resourceId('Microsoft.Web/sites/functions', parameters('AzureFunctionName')),'2015-08-01').trigger_url]"
+                                    "endpoint": "[listsecrets(resourceId('Microsoft.Web/sites/functions', parameters('AzureFunctionName'), parameters('AzureFunctionName')),'2015-08-01').trigger_url]"
                                 }
                             ]
                         },
