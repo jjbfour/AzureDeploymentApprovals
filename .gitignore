@@ -19,6 +19,7 @@ project.lock.json
 /secrets
 /data
 .secrets
+.vscode
 appsettings.json
 local.settings.json
 

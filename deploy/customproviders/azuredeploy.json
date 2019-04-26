@@ -1,0 +1,119 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "AzureFunctionName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "AzureCosmosDBName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "FunctionZipUri": {
+          "type": "string",
+          "metadata": {
+            "description": "The Uri to the uploaded function zip file"
+          },
+          "defaultValue": "https://github.com/raosuhas/managedapps-intro/blob/master/CustomRPWithFunction/Artifacts/functionpackage.zip?raw=true"
+        },
+        "SlackWebHook": {
+            "type": "string",
+            "metadata": {
+                "description": "The Uri to post messages to a Slack channel."
+            }
+        }
+    },
+    "variables": {
+        "location": "East US",
+        "customProvidersApiVersion" : "2018-09-01-preview"
+    },
+    "resources": [
+        {
+            "name": "[parameters('AzureCosmosDBName')]",
+            "type": "Microsoft.DocumentDB/databaseAccounts",
+            "apiVersion": "2016-03-31",
+            "location": "[parameters('location')]",
+            "kind": "MongoDB",
+            "properties": {
+                "enableMultipleWriteLocations": false,
+                "locations": [
+                    {
+                    "locationName": "[parameters('location')]"
+                    }
+                ],
+                "databaseAccountOfferType": "Standard"
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "kind": "functionapp",
+            "name": "[parameters('AzureFunctionName')]",
+            "apiVersion": "2018-02-01",
+            "location": "East US",
+            "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('AzureCosmosDBName'))]"
+            ],
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "name": "[parameters('AzureFunctionName')]",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~2"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "python"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[concat(toLower(parameters('AzureFunctionName')), 'b86e')]"
+                        },
+                        {
+                            "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                            "value": "6.5.0"
+                        },
+                        {
+                            "name":"WEBSITE_RUN_FROM_PACKAGE",
+                            "value":"[parameters('FunctionZipUri')]"
+                        },
+                        {
+                            "name":"SLACK_WEB_HOOK",
+                            "value":"[parameters('SlackWebHook')]"
+                        },
+                        {
+                            "name":"MONGO_DB_CONNECTION",
+                            "value":"[concat('mongodb://',parameters('AzureCosmosDBName'),':',listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('AzureCosmosDBName')), '2015-05-01-preview').primaryMasterKey, '@', parameters('AzureCosmosDBName'), 'documents.azure.com:10255/?ssl=true&replicaSet=globaldb')]"
+                        }
+                    ]
+                },
+                "clientAffinityEnabled": false,
+                "reserved": false
+            }
+        },
+        {
+            "apiVersion": "[variables('customProvidersApiVersion')]",
+            "type": "Microsoft.CustomProviders/resourceProviders",
+            "name":"[parameters('AzureFunctionName')]",
+            "location":"[variables('location')]",
+            "properties": {
+                            "resourceTypes": [
+                                {
+                                    "name":"approvals",
+                                    "routingType":"Proxy,Cache",
+                                    "endpoint": "[listsecrets(resourceId('Microsoft.Web/sites/functions', parameters('AzureFunctionName')),'2015-08-01').trigger_url]"
+                                }
+                            ]
+                        },
+            "dependsOn": [
+                "[concat('Microsoft.Web/sites/',parameters('AzureFunctionName'))]"
+            ]
+        }
+    ],
+    "outputs": {
+    }
+}
