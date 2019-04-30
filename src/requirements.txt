@@ -5,4 +5,4 @@ grpcio-tools==1.14.1
 protobuf==3.6.1
 six==1.11.0
 requests==2.21.0
-pymongo[tls]
+pymongo[tls]==3.8.0

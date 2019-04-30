@@ -1,0 +1,56 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "CustomProviderName": {
+            "type": "string",
+            "metadata": {
+                "description": "This is the name of the previously deployed custom resource provider."
+            },
+            "defaultValue": "azuredeploymentapprovals"
+        },
+        "ApprovalRequestName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the approval request."
+            },
+            "defaultValue": "[concat('approval', uniqueString(newGuid()))]"
+        },
+        "TestStorageAccountName":{
+            "type": "string",
+            "metadata": {
+                "description": "This is the name of the resource or deployment workflow that requires approval."
+            },
+            "defaultValue": "[concat('testresource', uniqueString(newGuid()))]"
+        }
+    },
+    "variables": {
+        "location": "East US",
+        "customProvidersApiVersion" : "2018-09-01-preview"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('CustomProviderName'), '/', parameters('ApprovalRequestName'))]",
+            "type": "Microsoft.CustomProviders/resourceproviders/approvals",
+            "apiVersion": "[variables('customProvidersApiVersion')]",
+            "location": "[variables('location')]",
+            "properties": {
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[parameters('TestStorageAccountName')]",
+            "apiVersion": "2018-02-01",
+            "kind": "StorageV2",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.CustomProviders/resourceproviders/', parameters('CustomProviderName'), '/','approvals/', parameters('ApprovalRequestName'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS"
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

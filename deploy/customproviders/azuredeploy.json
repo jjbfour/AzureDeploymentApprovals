@@ -4,17 +4,21 @@
     "parameters": {
         "AzureFunctionName": {
             "type": "string",
-            "defaultValue": "MyTestFunctionName"
+            "defaultValue": "[concat('approvals', uniqueString(resourceGroup().id))]"
         },
         "AzureCosmosDBName": {
             "type": "string",
-            "defaultValue": "azuredeploymentapprovals3"
+            "defaultValue": "[concat('approvals', uniqueString(resourceGroup().id))]"
+        },
+        "AzureStorageAccountName": {
+            "type": "string",
+            "defaultValue": "[concat('approvals', uniqueString(resourceGroup().id))]"
         },
         "FunctionZipUri": {
-          "type": "string",
-          "metadata": {
-            "description": "The Uri to the uploaded function zip file"
-          }
+            "type": "string",
+            "metadata": {
+                "description": "The Uri to the uploaded function zip file"
+            }
         },
         "SlackWebHook": {
             "type": "string",
@@ -26,7 +30,7 @@
     "variables": {
         "location": "East US",
         "cosmosLocation": "West US",
-        "customProvidersApiVersion" : "2018-09-01-preview"
+        "customProvidersApiVersion": "2018-09-01-preview"
     },
     "resources": [
         {
@@ -39,20 +43,31 @@
                 "enableMultipleWriteLocations": false,
                 "locations": [
                     {
-                    "locationName": "[variables('cosmosLocation')]"
+                        "locationName": "[variables('cosmosLocation')]"
                     }
                 ],
                 "databaseAccountOfferType": "Standard"
             }
         },
         {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[parameters('AzureStorageAccountName')]",
+            "apiVersion": "2018-02-01",
+            "kind": "StorageV2",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard_LRS"
+            }
+        },
+        {
             "type": "Microsoft.Web/sites",
-            "kind": "functionapp",
+            "kind": "functionapp,linux",
             "name": "[parameters('AzureFunctionName')]",
             "apiVersion": "2018-02-01",
             "location": "East US",
             "dependsOn": [
-                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('AzureCosmosDBName'))]"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('AzureCosmosDBName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('AzureStorageAccountName'))]"
             ],
             "identity": {
                 "type": "SystemAssigned"
@@ -70,50 +85,56 @@
                             "value": "python"
                         },
                         {
-                            "name": "WEBSITE_CONTENTSHARE",
-                            "value": "[concat(toLower(parameters('AzureFunctionName')), 'b86e')]"
-                        },
-                        {
                             "name": "WEBSITE_NODE_DEFAULT_VERSION",
-                            "value": "6.5.0"
+                            "value": "10.14.1"
                         },
                         {
-                            "name":"WEBSITE_RUN_FROM_PACKAGE",
-                            "value":"[parameters('FunctionZipUri')]"
+                            "name": "AzureWebJobsDashboard",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('AzureStorageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('AzureStorageAccountName')), '2015-05-01-preview').key1)]"
                         },
                         {
-                            "name":"SLACK_WEB_HOOK",
-                            "value":"[parameters('SlackWebHook')]"
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('AzureStorageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('AzureStorageAccountName')), '2015-05-01-preview').key1)]"
                         },
                         {
-                            "name":"MONGO_DB_CONNECTION",
-                            "value":"[concat('mongodb://',parameters('AzureCosmosDBName'),':',listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('AzureCosmosDBName')), '2015-05-01-preview').primaryMasterKey, '@', parameters('AzureCosmosDBName'), 'documents.azure.com:10255/?ssl=true&replicaSet=globaldb')]"
+                            "name": "WEBSITE_RUN_FROM_PACKAGE",
+                            "value": "[parameters('FunctionZipUri')]"
+                        },
+                        {
+                            "name": "AzureWebJobsSecretStorageType",
+                            "value": "Blob"
+                        },
+                        {
+                            "name": "SLACK_WEB_HOOK",
+                            "value": "[parameters('SlackWebHook')]"
+                        },
+                        {
+                            "name": "MONGO_DB_CONNECTION",
+                            "value": "[concat('mongodb://',parameters('AzureCosmosDBName'),':',listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('AzureCosmosDBName')), '2016-03-31').primaryMasterKey, '@', parameters('AzureCosmosDBName'), '.documents.azure.com:10255/?ssl=true&replicaSet=globaldb')]"
                         }
                     ]
                 },
-                "clientAffinityEnabled": false,
-                "reserved": false
+                "reserved": true
             }
         },
         {
             "apiVersion": "[variables('customProvidersApiVersion')]",
             "type": "Microsoft.CustomProviders/resourceProviders",
-            "name":"azuredeploymentapprovals",
-            "location":"[variables('location')]",
+            "name": "azuredeploymentapprovals",
+            "location": "[variables('location')]",
             "properties": {
-                            "resourceTypes": [
-                                {
-                                    "name":"approvals",
-                                    "routingType":"Proxy,Cache",
-                                    "endpoint": "[listsecrets(resourceId('Microsoft.Web/sites/functions', parameters('AzureFunctionName'), parameters('AzureFunctionName')),'2015-08-01').trigger_url]"
-                                }
-                            ]
-                        },
+                "resourceTypes": [
+                    {
+                        "name": "approvals",
+                        "routingType": "Proxy,Cache",
+                        "endpoint": "[concat('https://', parameters('AzureFunctionName'), '.azurewebsites.net/api/MessageTrigger')]"
+                    }
+                ]
+            },
             "dependsOn": [
                 "[concat('Microsoft.Web/sites/',parameters('AzureFunctionName'))]"
             ]
         }
     ],
-    "outputs": {
-    }
+    "outputs": {}
 }
