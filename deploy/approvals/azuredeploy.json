@@ -21,7 +21,7 @@
             "metadata": {
                 "description": "This is the name of the resource or deployment workflow that requires approval."
             },
-            "defaultValue": "[concat('testresource', uniqueString(newGuid()))]"
+            "defaultValue": "[concat('test', uniqueString(newGuid()))]"
         }
     },
     "variables": {

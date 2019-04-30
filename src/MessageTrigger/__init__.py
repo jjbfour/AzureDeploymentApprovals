@@ -74,14 +74,14 @@ def post(req_body, requestPath, req_url) -> func.HttpResponse:
     approval = approvals.find_one({ "_id" : requestPath })
 
     if (requestValue == "approve"):
-        approval.data["properties"]["provisioningState"] = "Succeeded"
+        approval["data"]["properties"]["provisioningState"] = "Succeeded"
     else:
-        approval.data["properties"]["provisioningState"] = "Failed"
+        approval["data"]["properties"]["provisioningState"] = "Failed"
 
     # Attempt to Update the Approval in Storage. However, it may have been deleted.
     try:
         approvals.replace_one(
-            { "_id": approval._id },
+            { "_id": approval["_id"] },
             approval)
     except:
         return func.HttpResponse(
@@ -101,15 +101,15 @@ def get(req_body, requestPath, req_url) -> func.HttpResponse:
     approval = approvals.find_one({"_id" : requestPath })
 
     if (approval is not None):
-        if (approval.data["properties"]["provisioningState"] == "Accepted"):
+        if (approval["data"]["properties"]["provisioningState"] == "Accepted"):
             return func.HttpResponse(
-                json.dumps(approval.data),
+                json.dumps({}),
                 headers={ "Content-Type": "application/json", "retry-after": "30"},
                 status_code=202
             )
         else:
             return func.HttpResponse(
-                json.dumps(approval.data),
+                json.dumps(approval["data"]),
                 headers={ "Content-Type": "application/json" },
                 status_code=200
             )
