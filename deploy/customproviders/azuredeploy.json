@@ -18,7 +18,8 @@
             "type": "string",
             "metadata": {
                 "description": "The Uri to the uploaded function zip file"
-            }
+            },
+            "defaultValue": "https://github.com/jjbfour/AzureDeploymentApprovals/blob/master/deploy/customproviders/artifacts/AzureDeploymentApprovals.zip"
         },
         "SlackWebHook": {
             "type": "string",
